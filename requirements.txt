@@ -16,19 +16,19 @@ alembic==1.14.1
 pymysql==1.1.1
 
 # AI & LangGraph
-langchain==0.3.14
-langchain-community==0.3.14
-langchain-core==0.3.47
-langchain-openai==0.3.0
-langchain-google-genai==2.1.1
-langchain-text-splitters==0.3.7
-langgraph==0.2.64
-langgraph-checkpoint==2.0.21
+langchain
+langchain-community
+langchain-core
+langchain-openai
+langchain-google-genai
+langchain-text-splitters
+langgraph
+langgraph-checkpoint
 langgraph-checkpoint-sqlite
 langgraph-checkpoint-mysql
 aiomysql
-langgraph-sdk==0.1.58
-langsmith==0.2.11
+langgraph-sdk
+langsmith
 openai==1.68.2
 tiktoken==0.9.0
 

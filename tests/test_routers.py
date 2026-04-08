@@ -185,13 +185,24 @@ class TestGenerateStream:
         assert "/auth/login" in resp.headers["Location"]
 
     def test_stream_no_api_keys_returns_error_event(self, auth_client):
-        """API 키가 없으면 stream_error 이벤트를 즉시 반환해야 함."""
+        """API 키가 없으면 stream_error 이벤트를 즉시 반환해야 함.
+
+        os.environ 제거만으로는 부족 — generate 라우터가 settings.openai_api_key로
+        폴백하여 os.environ에 다시 주입하기 때문. settings까지 함께 패치해야 함.
+        """
         import os
-        # API 키를 환경에서 제거
+        from unittest.mock import patch, MagicMock
+
         old_openai = os.environ.pop("OPENAI_API_KEY", None)
         old_tavily = os.environ.pop("TAVILY_API_KEY", None)
+
+        empty_settings = MagicMock()
+        empty_settings.openai_api_key = ""
+        empty_settings.tavily_api_key = ""
+
         try:
-            resp = auth_client.get("/generate/stream?topic=test")
+            with patch("routers.generate.get_settings", return_value=empty_settings):
+                resp = auth_client.get("/generate/stream?topic=test")
             assert resp.status_code == 200
             assert "stream_error" in resp.text
         finally:

@@ -485,7 +485,7 @@ async def init_checkpointer():
     if db_url.startswith("mysql"):
         # ── MySQL 체크포인터 ──────────────────────────────────────────
         import aiomysql
-        from langgraph.checkpoint.mysql.aio import AsyncMySQLSaver
+        from langgraph.checkpoint.mysql.aio import AIOMySQLSaver
 
         conn_params = _parse_mysql_url(db_url)
         _ckpt_conn = await aiomysql.connect(
@@ -496,8 +496,22 @@ async def init_checkpointer():
             db=conn_params["db"],
             autocommit=True,
         )
-        checkpointer = AsyncMySQLSaver(_ckpt_conn)
+        checkpointer = AIOMySQLSaver(_ckpt_conn)
         await checkpointer.setup()   # 체크포인트 테이블 자동 생성
+
+        # MySQL 8.0 기본 collation(utf8mb4_0900_ai_ci)과 기존 테이블 collation 불일치 방지
+        # 테이블을 연결 기본값에 맞게 일괄 변환
+        _checkpoint_tables = [
+            "checkpoint_migrations",
+            "checkpoints",
+            "checkpoint_blobs",
+            "checkpoint_writes",
+        ]
+        async with _ckpt_conn.cursor() as _cur:
+            for _tbl in _checkpoint_tables:
+                await _cur.execute(
+                    f"ALTER TABLE `{_tbl}` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci"
+                )
     else:
         # ── SQLite 체크포인터 (로컬/테스트용 fallback) ────────────────
         import json as _json
