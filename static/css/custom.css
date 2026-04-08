@@ -1,0 +1,7 @@
+/* 
+   custom.css 
+   User requested minimal custom CSS, relying on Bootstrap 5 native utility classes.
+*/
+body {
+    -webkit-font-smoothing: antialiased;
+}

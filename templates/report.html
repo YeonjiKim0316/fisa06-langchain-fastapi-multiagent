@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{{ topic }} — DeepResearch AI{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-xl-10">
+
+    <!-- Header + actions -->
+    <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+      <div>
+        <h2 class="text-primary fw-bold mb-1" style="font-size:1.7rem;">
+          {{ topic }}
+        </h2>
+        <a href="/dashboard" class="text-muted small text-decoration-none hover-primary">
+          <i class="bi bi-arrow-left me-1"></i>대시보드로
+        </a>
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-outline-primary btn-sm bg-white" id="btn-copy">
+          <i class="bi bi-clipboard me-1"></i>복사
+        </button>
+        <a href="/pdf/reports/{{ filename }}/markdown"
+           class="btn btn-outline-primary btn-sm bg-white">
+          <i class="bi bi-markdown me-1"></i>MD 다운로드
+        </a>
+        <a href="/pdf/reports/{{ filename }}/pdf"
+           class="btn btn-primary btn-sm shadow-sm">
+          <i class="bi bi-file-earmark-pdf me-1"></i>PDF 다운로드
+        </a>
+        <form method="post" action="/reports/{{ filename }}/delete"
+              onsubmit="return confirm('정말 삭제하시겠습니까?')">
+          <button type="submit" class="btn btn-outline-danger btn-sm bg-white">
+            <i class="bi bi-trash3 me-1"></i>삭제
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Report content -->
+    <div class="card shadow-sm border-0 p-4 bg-white mb-4" id="report-body" style="line-height:1.7;">
+      {{ content | safe }}
+    </div>
+
+    <!-- Research History (Conversation Log) -->
+    {% if logs %}
+    <div class="card shadow-sm border-0 bg-white mb-4 overflow-hidden">
+      <div class="card-header bg-light border-0 py-3">
+        <h6 class="mb-0 fw-bold text-secondary">
+          <i class="bi bi-chat-left-dots me-2"></i>리서치 히스토리 (대화 내역)
+        </h6>
+      </div>
+      <div class="card-body p-0">
+        <div class="list-group list-group-flush" style="font-size: 0.9rem;">
+          {% for log in logs %}
+            <div class="list-group-item border-0 border-bottom px-4 py-3">
+              {% if log.type == 'progress' %}
+                <div class="d-flex align-items-center text-primary fw-medium">
+                  <i class="bi bi-gear-wide-connected me-2"></i>{{ log.label }}
+                </div>
+              {% else %}
+                <div class="fw-bold text-dark mb-1">
+                  <i class="bi bi-file-earmark-text me-2"></i>{{ log.title }} 작성 완료
+                </div>
+                <div class="text-muted small text-truncate" style="max-height: 3rem;">
+                  {{ log.body[:200] }}...
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Expose raw markdown for copy button and render via marked.js
+  window.__reportRaw__ = {{ content | tojson }};
+  document.getElementById('report-body').innerHTML = marked.parse(window.__reportRaw__);
+</script>
+<script src="/static/js/report.js"></script>
+{% endblock %}

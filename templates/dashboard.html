@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}대시보드 — DeepResearch AI{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <!-- Sidebar: Settings -->
+  <div class="col-12 col-lg-3">
+
+    <!-- Profile -->
+    <div class="card shadow-sm border-0 p-3 mb-3 bg-white">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <i class="bi bi-person-circle fs-4 text-primary"></i>
+        <div>
+          <div class="fw-bold text-dark">{{ user.email }}</div>
+          <div class="text-muted" style="font-size:0.75rem">{{ user.id[:8] }}...</div>
+        </div>
+      </div>
+      <a href="/generate" class="btn btn-primary w-100 mt-2">
+        <i class="bi bi-plus-lg me-1"></i>새 보고서
+      </a>
+    </div>
+
+    <!-- Settings accordion -->
+    <div class="accordion shadow-sm border-0 mb-3" id="settingsAccordion">
+
+      <!-- API Keys -->
+      <div class="accordion-item border-0 border-bottom">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed bg-white text-dark fw-semibold" type="button"
+                  data-bs-toggle="collapse" data-bs-target="#apiKeyPanel">
+            <i class="bi bi-key me-2 text-primary"></i>API 키 관리
+          </button>
+        </h2>
+        <div id="apiKeyPanel" class="accordion-collapse collapse bg-light">
+          <div class="accordion-body">
+            {% if session.get('api_keys_set') %}
+              <div class="alert alert-success py-2 small mb-2 shadow-sm border-0">
+                <i class="bi bi-check-circle-fill me-1"></i>API 키 설정 완료
+              </div>
+            {% endif %}
+            <form method="post" action="/settings/apikeys">
+              <div class="mb-2">
+                <label class="form-label small fw-semibold text-secondary">OpenAI API Key</label>
+                <input type="password" name="openai_key" class="form-control form-control-sm bg-white"
+                       placeholder="sk-..." required
+                       value="{{ session.get('openai_api_key', '') }}">
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold text-secondary">Tavily API Key</label>
+                <input type="password" name="tavily_key" class="form-control form-control-sm bg-white"
+                       placeholder="tvly-..." required
+                       value="{{ session.get('tavily_api_key', '') }}">
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm w-100">저장</button>
+            </form>
+            <div class="mt-2" style="font-size:0.75rem;">
+              <a href="https://platform.openai.com/api-keys" target="_blank" class="text-primary text-decoration-none">OpenAI 발급 →</a><br>
+              <a href="https://app.tavily.com/home" target="_blank" class="text-primary text-decoration-none">Tavily 발급 →</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preferences -->
+      <div class="accordion-item border-0">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed bg-white text-dark fw-semibold" type="button"
+                  data-bs-toggle="collapse" data-bs-target="#prefPanel">
+            <i class="bi bi-sliders me-2 text-primary"></i>생성 설정
+          </button>
+        </h2>
+        <div id="prefPanel" class="accordion-collapse collapse bg-light">
+          <div class="accordion-body">
+            <form method="post" action="/settings/preferences">
+              <div class="mb-3">
+                <label class="form-label small fw-semibold text-secondary">보고서 언어</label>
+                <select name="language" class="form-select form-select-sm bg-white">
+                  <option value="한국어" {% if session.get('language','한국어')=='한국어' %}selected{% endif %}>한국어</option>
+                  <option value="English" {% if session.get('language')=='English' %}selected{% endif %}>English</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold text-secondary">AI 모델</label>
+                <select name="model_name" class="form-select form-select-sm bg-white">
+                  <option value="gpt-5" {% if session.get('model_name','gpt-5')=='gpt-5' %}selected{% endif %}>gpt-5 (고품질)</option>
+                  <option value="gpt-5-nano" {% if session.get('model_name')=='gpt-5-nano' %}selected{% endif %}>gpt-5-nano (빠름/경제적)</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm w-100">저장</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /accordion -->
+
+    <!-- How it works -->
+    <div class="card shadow-sm border-0 p-3 mt-3 bg-white">
+      <div class="fw-bold mb-2 text-primary">사용 방법</div>
+      <div class="d-flex gap-2 mb-2 align-items-start">
+        <span style="font-size:1.2rem">🧠</span>
+        <div><div class="fw-bold text-dark small">계획</div><div class="text-muted" style="font-size:0.75rem">AI가 주제 분석 후 보고서 구조 설계</div></div>
+      </div>
+      <div class="d-flex gap-2 mb-2 align-items-start">
+        <span style="font-size:1.2rem">🔍</span>
+        <div><div class="fw-bold text-dark small">리서치</div><div class="text-muted" style="font-size:0.75rem">신뢰할 출처 자동 검색</div></div>
+      </div>
+      <div class="d-flex gap-2 mb-2 align-items-start">
+        <span style="font-size:1.2rem">✍️</span>
+        <div><div class="fw-bold text-dark small">작성</div><div class="text-muted" style="font-size:0.75rem">GPT-5가 체계적으로 작성</div></div>
+      </div>
+      <div class="d-flex gap-2 align-items-start">
+        <span style="font-size:1.2rem">📥</span>
+        <div><div class="fw-bold text-dark small">다운로드</div><div class="text-muted" style="font-size:0.75rem">PDF / Markdown 내보내기</div></div>
+      </div>
+    </div>
+
+  </div><!-- /sidebar -->
+
+  <!-- Main: Saved Reports -->
+  <div class="col-12 col-lg-9">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h2 class="text-primary fw-bold mb-0" style="font-size:1.8rem">
+        <i class="bi bi-archive me-2"></i>저장된 보고서
+      </h2>
+      <a href="/generate" class="btn btn-primary px-4 shadow-sm">
+        <i class="bi bi-plus-lg me-1"></i>새 보고서
+      </a>
+    </div>
+
+    {% if reports %}
+      <div class="row g-3">
+        {% for report in reports %}
+        <div class="col-12 col-md-6 col-xl-4">
+          <div class="card shadow-sm border-0 p-3 h-100 d-flex flex-column bg-white">
+            <div class="mb-2">
+              <span class="badge bg-light text-primary border border-primary-subtle" style="font-size:0.7rem">
+                {{ report.timestamp.strftime('%Y-%m-%d %H:%M') }}
+              </span>
+            </div>
+            <h6 class="fw-bold mb-3 flex-grow-1 text-dark">
+              {{ report.topic }}
+            </h6>
+            <div class="d-flex gap-2 mt-auto">
+              <a href="/reports/{{ report.path }}"
+                 class="btn btn-primary btn-sm flex-fill">
+                <i class="bi bi-eye me-1"></i>보기
+              </a>
+              <a href="/pdf/reports/{{ report.path }}/pdf"
+                 class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-file-earmark-pdf"></i>
+              </a>
+              <form method="post" action="/reports/{{ report.path }}/delete"
+                    onsubmit="return confirm('정말 삭제하시겠습니까?')">
+                <button type="submit" class="btn btn-outline-danger btn-sm">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="card shadow-sm border-0 p-5 text-center bg-white">
+        <div style="font-size:3rem;" class="text-muted opacity-50">📭</div>
+        <p class="mt-3 text-muted">저장된 보고서가 없습니다.</p>
+        <div>
+          <a href="/generate" class="btn btn-primary mt-2 shadow-sm">
+            <i class="bi bi-plus-lg me-1"></i>첫 보고서 만들기
+          </a>
+        </div>
+      </div>
+    {% endif %}
+
+  </div><!-- /main -->
+</div>
+
+<!-- Flash message reader -->
+<script>
+(function () {
+  const raw = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('flash='));
+  if (!raw) return;
+  try {
+    const msgs = JSON.parse(decodeURIComponent(raw.slice(6)));
+    const container = document.querySelector('.container-fluid.px-4.mt-3') || document.querySelector('main');
+    msgs.forEach(([cat, msg]) => {
+      const bcat = cat === 'error' ? 'danger' : cat === 'success' ? 'success' : 'primary';
+      const icon = cat === 'error' ? 'bi-exclamation-triangle-fill'
+                 : cat === 'success' ? 'bi-check-circle-fill'
+                 : 'bi-info-circle-fill';
+      const div = document.createElement('div');
+      div.className = `alert alert-${bcat} alert-dismissible fade show mb-3 shadow-sm`;
+      div.innerHTML = `<i class="bi ${icon} me-2"></i>${msg}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+      container.prepend(div);
+    });
+    document.cookie = 'flash=; max-age=0; path=/';
+  } catch(e) {}
+})();
+</script>
+{% endblock %}

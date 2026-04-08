@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}로그인 — DeepResearch AI{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height:80vh">
+  <div class="col-12 col-sm-10 col-md-7 col-lg-5 col-xl-4">
+
+    <!-- Header -->
+    <div class="text-center mb-4">
+      <h1 class="text-primary fw-bold" style="font-size:2.8rem;">DeepResearch AI</h1>
+      <p class="text-muted">AI 기반 리서치 보고서 자동 생성</p>
+    </div>
+
+    <!-- Flash messages from cookie -->
+    <div id="flash-container"></div>
+
+    <!-- Auth card -->
+    <div class="card shadow-sm border-0 p-4">
+      <!-- Tabs -->
+      <ul class="nav nav-tabs mb-4" id="authTab" role="tablist">
+        <li class="nav-item flex-fill text-center" role="presentation">
+          <button class="nav-link active w-100" id="login-tab"
+                  data-bs-toggle="tab" data-bs-target="#login"
+                  type="button" role="tab">
+            <i class="bi bi-box-arrow-in-right me-1"></i>로그인
+          </button>
+        </li>
+        <li class="nav-item flex-fill text-center" role="presentation">
+          <button class="nav-link w-100" id="signup-tab"
+                  data-bs-toggle="tab" data-bs-target="#signup"
+                  type="button" role="tab">
+            <i class="bi bi-person-plus me-1"></i>회원가입
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content">
+        <!-- Login Tab -->
+        <div class="tab-pane fade show active" id="login" role="tabpanel">
+          <form method="post" action="/auth/login">
+            <div class="mb-3">
+              <label class="form-label fw-semibold text-secondary">이메일</label>
+              <input type="email" name="email" class="form-control bg-light"
+                     placeholder="you@example.com" required autocomplete="email">
+            </div>
+            <div class="mb-4">
+              <label class="form-label fw-semibold text-secondary">비밀번호</label>
+              <input type="password" name="password" class="form-control bg-light"
+                     placeholder="••••••••" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn btn-primary w-100 py-2">
+              <i class="bi bi-box-arrow-in-right me-1"></i>로그인
+            </button>
+          </form>
+        </div>
+
+        <!-- Signup Tab -->
+        <div class="tab-pane fade" id="signup" role="tabpanel">
+          <form method="post" action="/auth/signup">
+            <div class="mb-3">
+              <label class="form-label fw-semibold text-secondary">이름</label>
+              <input type="text" name="full_name" class="form-control bg-light"
+                     placeholder="홍길동" required autocomplete="name">
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold text-secondary">이메일</label>
+              <input type="email" name="email" class="form-control bg-light"
+                     placeholder="you@example.com" required autocomplete="email">
+            </div>
+            <div class="mb-4">
+              <label class="form-label fw-semibold text-secondary">비밀번호</label>
+              <input type="password" name="password" class="form-control bg-light"
+                     placeholder="8자 이상" required minlength="8"
+                     autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn btn-primary w-100 py-2">
+              <i class="bi bi-person-plus me-1"></i>회원가입
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature cards -->
+    <div class="row g-2 mt-3">
+      <div class="col-6">
+        <div class="card shadow-sm border-0 p-3 text-center bg-white h-100">
+          <div style="font-size:1.6rem">🧠</div>
+          <div class="fw-bold text-dark small mt-1">AI 계획</div>
+          <div class="text-muted" style="font-size:0.75rem">구조 자동 설계</div>
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="card shadow-sm border-0 p-3 text-center bg-white h-100">
+          <div style="font-size:1.6rem">🔍</div>
+          <div class="fw-bold text-dark small mt-1">웹 리서치</div>
+          <div class="text-muted" style="font-size:0.75rem">실시간 검색</div>
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="card shadow-sm border-0 p-3 text-center bg-white h-100">
+          <div style="font-size:1.6rem">✍️</div>
+          <div class="fw-bold text-dark small mt-1">자동 작성</div>
+          <div class="text-muted" style="font-size:0.75rem">GPT-5 기반</div>
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="card shadow-sm border-0 p-3 text-center bg-white h-100">
+          <div style="font-size:1.6rem">📥</div>
+          <div class="fw-bold text-dark small mt-1">PDF 내보내기</div>
+          <div class="text-muted" style="font-size:0.75rem">즉시 다운로드</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-activate signup tab if ?tab=signup
+(function () {
+  if (new URLSearchParams(window.location.search).get('tab') === 'signup') {
+    const tab = document.getElementById('signup-tab');
+    if (tab) bootstrap.Tab.getOrCreateInstance(tab).show();
+  }
+})();
+
+// Read flash cookie and display message
+(function () {
+  const raw = document.cookie.split(';').map(c => c.trim())
+    .find(c => c.startsWith('flash='));
+  if (!raw) return;
+  try {
+    const msgs = JSON.parse(decodeURIComponent(raw.slice(6)));
+    const container = document.getElementById('flash-container');
+    msgs.forEach(([cat, msg]) => {
+      const icon = cat === 'error' ? 'bi-exclamation-triangle-fill text-danger'
+                 : cat === 'success' ? 'bi-check-circle-fill text-success'
+                 : 'bi-info-circle-fill text-primary';
+      container.innerHTML += `
+        <div class="alert alert-${cat==='error'?'danger':cat==='success'?'success':'primary'} alert-dismissible fade show shadow-sm" role="alert">
+          <i class="bi ${icon} me-2"></i>${msg}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>`;
+    });
+    // Clear flash cookie
+    document.cookie = 'flash=; max-age=0; path=/';
+  } catch(e) {}
+})();
+</script>
+{% endblock %}
