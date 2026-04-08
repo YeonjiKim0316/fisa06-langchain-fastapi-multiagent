@@ -121,5 +121,3 @@ pytest tests/ --tb=short
 - `reportlab` & `Markdown`: 전문적인 양식의 PDF 출력 렌더링 및 페이지 구조 생성 처리
 - `passlib[bcrypt]` & `pyjwt`: 안전한 암호화 메커니즘 제공, 해싱, 및 JWT 토큰 보안 파이프라인 관리
 
-## 📄 라이선스 (License)
-본 프로젝트는 MIT 라이선스를 따릅니다.

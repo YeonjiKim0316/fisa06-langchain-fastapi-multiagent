@@ -26,7 +26,6 @@ jobs:
       # (순수 함수 + TestClient)
       - name: Run 09 tests
         run: pytest tests/ --tb=short
-
-
         env:
+          PYTHONPATH: .
           OPENAI_API_KEY: test-dummy-key
