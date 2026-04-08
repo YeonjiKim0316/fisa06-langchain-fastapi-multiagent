@@ -25,6 +25,8 @@ langchain-text-splitters==0.3.7
 langgraph==0.2.64
 langgraph-checkpoint==2.0.21
 langgraph-checkpoint-sqlite
+langgraph-checkpoint-mysql
+aiomysql
 langgraph-sdk==0.1.58
 langsmith==0.2.11
 openai==1.68.2

@@ -448,76 +448,113 @@ builder.add_conditional_edges("format_completed_sections",
 builder.add_edge("write_final_sections", "compile_final_report")
 builder.add_edge("compile_final_report", END)
 
-# AsyncSqliteSaver: 서버 재시작 후에도 체크포인트 유지.
-# HITL에 필수 — Phase 1(plan_generated)과 Phase 2(resume)가
-# 별도 HTTP 요청으로 처리되므로 MemorySaver는 상태를 잃음.
+# 체크포인터 설정:
+# - DATABASE_URL이 MySQL이면 → langgraph-checkpoint-mysql (AsyncMySQLSaver)
+# - 그 외(SQLite 등)면 → 로컬 checkpoints.db (AsyncSqliteSaver)
 # FastAPI lifespan에서 init_checkpointer()를 호출해 초기화함.
 import os as _os
-import json as _json
-from pydantic import BaseModel as _BaseModel
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver as _AsyncSqliteSaver
-from langgraph.checkpoint.sqlite.aio import get_checkpoint_metadata as _get_checkpoint_metadata
+import re as _re
+from urllib.parse import urlparse as _urlparse
 
-
-class _PydanticEncoder(_json.JSONEncoder):
-    """Pydantic BaseModel을 dict로 변환해 JSON 직렬화 오류를 방지한다."""
-    def default(self, obj):
-        if isinstance(obj, _BaseModel):
-            return obj.model_dump()
-        return super().default(obj)
-
-
-class _PydanticAwareSqliteSaver(_AsyncSqliteSaver):
-    """메타데이터 직렬화 시 Pydantic 모델을 지원하는 AsyncSqliteSaver 서브클래스."""
-
-    async def aput(self, config, checkpoint, metadata, new_versions):
-        await self.setup()
-        thread_id = config["configurable"]["thread_id"]
-        checkpoint_ns = config["configurable"]["checkpoint_ns"]
-        type_, serialized_checkpoint = self.serde.dumps_typed(checkpoint)
-        # Pydantic 모델이 포함될 수 있는 메타데이터를 안전하게 직렬화
-        serialized_metadata = _json.dumps(
-            _get_checkpoint_metadata(config, metadata),
-            ensure_ascii=False,
-            cls=_PydanticEncoder,
-        ).encode("utf-8", "ignore")
-        async with (
-            self.lock,
-            self.conn.execute(
-                "INSERT OR REPLACE INTO checkpoints "
-                "(thread_id, checkpoint_ns, checkpoint_id, parent_checkpoint_id, type, checkpoint, metadata) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (
-                    str(config["configurable"]["thread_id"]),
-                    checkpoint_ns,
-                    checkpoint["id"],
-                    config["configurable"].get("checkpoint_id"),
-                    type_,
-                    serialized_checkpoint,
-                    serialized_metadata,
-                ),
-            ),
-        ):
-            await self.conn.commit()
-        return {
-            "configurable": {
-                "thread_id": thread_id,
-                "checkpoint_ns": checkpoint_ns,
-                "checkpoint_id": checkpoint["id"],
-            }
-        }
-
-_ckpt_path = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..", "checkpoints.db"))
 _ckpt_conn = None
 reporter_agent = None  # lifespan에서 초기화됨
 
 
+def _parse_mysql_url(url: str) -> dict:
+    """mysql+pymysql://user:pass@host:port/db 형태의 URL을 파싱해 dict로 반환."""
+    # aiomysql은 'mysql://' 형태를 사용하므로 드라이버 접두사 제거
+    clean = _re.sub(r'^mysql\+[^:]+://', 'mysql://', url)
+    parsed = _urlparse(clean)
+    return {
+        "host": parsed.hostname,
+        "port": parsed.port or 3306,
+        "user": parsed.username,
+        "password": parsed.password,
+        "db": parsed.path.lstrip("/"),
+    }
+
+
 async def init_checkpointer():
-    """앱 시작 시 비동기 SQLite 체크포인터와 에이전트를 초기화한다."""
+    """앱 시작 시 DATABASE_URL에 따라 MySQL 또는 SQLite 체크포인터를 초기화한다."""
     global _ckpt_conn, reporter_agent
-    import aiosqlite
-    _ckpt_conn = await aiosqlite.connect(_ckpt_path)
-    checkpointer = _PydanticAwareSqliteSaver(_ckpt_conn)
+
+    from core.config import get_settings
+    settings = get_settings()
+    db_url = settings.database_url
+
+    if db_url.startswith("mysql"):
+        # ── MySQL 체크포인터 ──────────────────────────────────────────
+        import aiomysql
+        from langgraph.checkpoint.mysql.aio import AsyncMySQLSaver
+
+        conn_params = _parse_mysql_url(db_url)
+        _ckpt_conn = await aiomysql.connect(
+            host=conn_params["host"],
+            port=conn_params["port"],
+            user=conn_params["user"],
+            password=conn_params["password"],
+            db=conn_params["db"],
+            autocommit=True,
+        )
+        checkpointer = AsyncMySQLSaver(_ckpt_conn)
+        await checkpointer.setup()   # 체크포인트 테이블 자동 생성
+    else:
+        # ── SQLite 체크포인터 (로컬/테스트용 fallback) ────────────────
+        import json as _json
+        from pydantic import BaseModel as _BaseModel
+        from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+        from langgraph.checkpoint.sqlite.aio import get_checkpoint_metadata as _get_checkpoint_metadata
+        import aiosqlite
+
+        class _PydanticEncoder(_json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, _BaseModel):
+                    return obj.model_dump()
+                return super().default(obj)
+
+        class _PydanticAwareSqliteSaver(AsyncSqliteSaver):
+            async def aput(self, config, checkpoint, metadata, new_versions):
+                await self.setup()
+                thread_id = config["configurable"]["thread_id"]
+                checkpoint_ns = config["configurable"]["checkpoint_ns"]
+                type_, serialized_checkpoint = self.serde.dumps_typed(checkpoint)
+                serialized_metadata = _json.dumps(
+                    _get_checkpoint_metadata(config, metadata),
+                    ensure_ascii=False,
+                    cls=_PydanticEncoder,
+                ).encode("utf-8", "ignore")
+                async with (
+                    self.lock,
+                    self.conn.execute(
+                        "INSERT OR REPLACE INTO checkpoints "
+                        "(thread_id, checkpoint_ns, checkpoint_id, parent_checkpoint_id, type, checkpoint, metadata) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        (
+                            str(thread_id),
+                            checkpoint_ns,
+                            checkpoint["id"],
+                            config["configurable"].get("checkpoint_id"),
+                            type_,
+                            serialized_checkpoint,
+                            serialized_metadata,
+                        ),
+                    ),
+                ):
+                    await self.conn.commit()
+                return {
+                    "configurable": {
+                        "thread_id": thread_id,
+                        "checkpoint_ns": checkpoint_ns,
+                        "checkpoint_id": checkpoint["id"],
+                    }
+                }
+
+        _ckpt_path = _os.path.abspath(
+            _os.path.join(_os.path.dirname(__file__), "..", "checkpoints.db")
+        )
+        _ckpt_conn = await aiosqlite.connect(_ckpt_path)
+        checkpointer = _PydanticAwareSqliteSaver(_ckpt_conn)
+
     reporter_agent = builder.compile(
         checkpointer=checkpointer,
         interrupt_after=["generate_report_plan"],
@@ -525,11 +562,11 @@ async def init_checkpointer():
 
 
 async def close_checkpointer():
-    """앱 종료 시 SQLite 연결을 닫는다. 종료 시 취소 오류는 무시한다."""
+    """앱 종료 시 DB 연결을 닫는다."""
     global _ckpt_conn
     if _ckpt_conn:
         try:
-            await _ckpt_conn.close()
+            await _ckpt_conn.ensure_closed() if hasattr(_ckpt_conn, 'ensure_closed') else await _ckpt_conn.close()
         except Exception:
             pass
         _ckpt_conn = None
