@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     )
 
     app_env: str = "local"
-    database_url: str = "sqlite:///./deepresearch.db"
+    database_url: str = "sqlite:///./fisaai6-research-agent.db"
     
     # 스토리지 설정
     local_storage_dir: str = "saved_reports"
