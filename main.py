@@ -2,6 +2,7 @@ import os
 import logging
 from dotenv import load_dotenv
 load_dotenv(f".env.{os.environ.get('APP_ENV', 'local')}")
+load_dotenv(".env", override=True)
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request

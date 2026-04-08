@@ -5,7 +5,7 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=f".env.{os.environ.get('APP_ENV', 'local')}",
+        env_file=(f".env.{os.environ.get('APP_ENV', 'local')}", ".env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore"
