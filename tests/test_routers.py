@@ -201,7 +201,7 @@ class TestGenerateStream:
         empty_settings.tavily_api_key = ""
 
         try:
-            with patch("routers.generate.get_settings", return_value=empty_settings):
+            with patch("core.config.get_settings", return_value=empty_settings):
                 resp = auth_client.get("/generate/stream?topic=test")
             assert resp.status_code == 200
             assert "stream_error" in resp.text

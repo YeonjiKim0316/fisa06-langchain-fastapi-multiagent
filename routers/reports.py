@@ -1,12 +1,11 @@
 import logging
-from urllib.parse import quote
 from fastapi import APIRouter, Request, Form, Depends
-from fastapi.responses import RedirectResponse, HTMLResponse, Response
+from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from core.dependencies import require_user
 from core.session import get_session, update_session
 from core.utils import flash, topic_from_filename
-from services.storage_service import load_saved_reports, get_report_content, delete_report
+from services.storage_service import load_saved_reports, get_report_content, delete_report, get_report_logs
 
 router = APIRouter(tags=["reports"])
 templates = Jinja2Templates(directory="templates")
@@ -59,7 +58,6 @@ async def save_preferences(
 
 @router.post("/reports/{filename:path}/delete")
 async def delete_report_route(
-    request: Request,
     filename: str,
     user=Depends(require_user),
 ):
@@ -77,7 +75,6 @@ async def view_report(
     user=Depends(require_user),
 ):
     content = get_report_content(str(user.id), filename)
-    from services.storage_service import get_report_logs
     logs = get_report_logs(str(user.id), filename)
     if not content:
         response = RedirectResponse(url="/dashboard", status_code=302)

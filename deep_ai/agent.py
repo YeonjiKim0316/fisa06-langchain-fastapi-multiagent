@@ -1,19 +1,15 @@
 from langchain_openai import ChatOpenAI
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from deep_ai.prompts import REPORT_PLAN_QUERY_GENERATOR_PROMPT, REPORT_PLAN_SECTION_GENERATOR_PROMPT, SECTION_WRITER_PROMPT, FINAL_SECTION_WRITER_PROMPT, REPORT_SECTION_QUERY_GENERATOR_PROMPT, DEFAULT_REPORT_STRUCTURE, LANGUAGE_INSTRUCTION
 from deep_ai.util import format_search_query_results, run_search_queries
 
 from langgraph.graph import StateGraph, START, END
-from langgraph.constants import Send
+from langgraph.types import Send
 
 from typing_extensions import TypedDict
 from pydantic import BaseModel, Field
 import operator
-from typing import Annotated, List, Optional, Literal
-
-
-# print("The keys are loaded")
+from typing import Annotated, List
 
 class Section(BaseModel):
     name: str = Field(
@@ -97,7 +93,6 @@ async def generate_report_plan(state: ReportState):
     topic = state["topic"]
     language = state.get("language", "English")
     model_name = state.get("model_name", "gpt-5-nano")
-    openai_api_key = state.get("openai_api_key")
     print('--- Generating Report Plan ---')
 
     # Get LLM on demand
@@ -166,36 +161,27 @@ async def generate_report_plan(state: ReportState):
     
 # Section Builder agent
 
-def generate_queries(state: SectionState):
+async def generate_queries(state: SectionState):
     """ Generate search queries for a specific report section """
 
-    # Get state
     section = state["section"]
     model_name = state.get("model_name", "gpt-5-nano")
-    openai_api_key = state.get("openai_api_key")
     print('--- Generating Search Queries for Section: '+ section.name +' ---')
 
-    # Get LLM on demand
     try:
         llm = get_llm(model_name)
     except Exception as e:
         print(f"Error initializing OpenAI API: {e}")
         return {"search_queries": []}
 
-    # Get configuration
-    number_of_queries = 3
-
-    # Generate queries
     structured_llm = llm.with_structured_output(Queries)
-
-    # Format system instructions
-    system_instructions = REPORT_SECTION_QUERY_GENERATOR_PROMPT.format(section_topic=section.description,
-                                                                       number_of_queries=number_of_queries)
-
-    # Generate queries
-    user_instruction = "Generate search queries on the provided topic."
-    search_queries = structured_llm.invoke([SystemMessage(content=system_instructions),
-                                     HumanMessage(content=user_instruction)])
+    system_instructions = REPORT_SECTION_QUERY_GENERATOR_PROMPT.format(
+        section_topic=section.description, number_of_queries=3
+    )
+    search_queries = await structured_llm.ainvoke([
+        SystemMessage(content=system_instructions),
+        HumanMessage(content="Generate search queries on the provided topic."),
+    ])
 
     print('--- Generating Search Queries for Section: '+ section.name +' Completed ---')
 
@@ -206,10 +192,7 @@ def generate_queries(state: SectionState):
 async def search_web(state: SectionState):
     """ Search the web for each query, then return a list of raw sources and a formatted string of sources."""
 
-    # Get state
     search_queries = state["search_queries"]
-    tavily_api_key = state.get("tavily_api_key")
-
     print('--- Searching Web for Queries ---')
 
     # Web search
@@ -225,19 +208,15 @@ async def search_web(state: SectionState):
 
 # Section Builder Writer
 
-def write_section(state: SectionState):
+async def write_section(state: SectionState):
     """ Write a section of the report """
 
-    # Get state
     section = state["section"]
     source_str = state["source_str"]
     language = state.get("language", "English")
     model_name = state.get("model_name", "gpt-5-nano")
-    openai_api_key = state.get("openai_api_key")
-
     print('--- Writing Section : '+ section.name +' ---')
 
-    # Get LLM on demand
     try:
         llm = get_llm(model_name)
     except Exception as e:
@@ -245,34 +224,29 @@ def write_section(state: SectionState):
         section.content = "Error: Could not generate content due to API issues."
         return {"completed_sections": [section]}
 
-    # Format system instructions
     lang_instr = LANGUAGE_INSTRUCTION.get(language, "")
-    system_instructions = SECTION_WRITER_PROMPT.format(section_title=section.name,
-                                                       section_topic=section.description,
-                                                       context=source_str) + lang_instr
+    system_instructions = SECTION_WRITER_PROMPT.format(
+        section_title=section.name, section_topic=section.description, context=source_str
+    ) + lang_instr
 
-    # Generate section
-    user_instruction = "Generate a report section based on the provided sources."
     try:
-        section_content = llm.invoke([SystemMessage(content=system_instructions),
-                                      HumanMessage(content=user_instruction)])
+        section_content = await llm.ainvoke([
+            SystemMessage(content=system_instructions),
+            HumanMessage(content="Generate a report section based on the provided sources."),
+        ])
     except Exception as e:
         print(f"Error writing section '{section.name}': {e}")
         section.content = f"## {section.name}\n\nContent could not be generated due to an API error."
         return {"completed_sections": [section]}
 
-    # Write content to the section object
     section.content = section_content.content
-
     print('--- Writing Section : '+ section.name +' Completed ---')
-
-    # Write the updated section to completed sections
     return {"completed_sections": [section]}
 
 # Section Builder Sub Agent
 
 # Add nodes and edges
-section_builder = StateGraph(SectionState, output=SectionOutputState)
+section_builder = StateGraph(SectionState, output_schema=SectionOutputState)
 section_builder.add_node("generate_queries", generate_queries)
 section_builder.add_node("search_web", search_web)
 section_builder.add_node("write_section", write_section)
@@ -338,19 +312,15 @@ def format_completed_sections(state: ReportState):
 
 # Final Section
 
-def write_final_sections(state: SectionState):
+async def write_final_sections(state: SectionState):
     """ Write the final sections of the report, which do not require web search and use the completed sections as context"""
 
-    # Get state
     section = state["section"]
     completed_report_sections = state["report_sections_from_research"]
     language = state.get("language", "English")
     model_name = state.get("model_name", "gpt-5-nano")
-    openai_api_key = state.get("openai_api_key")
-
     print('--- Writing Final Section: '+ section.name + ' ---')
 
-    # Get LLM on demand
     try:
         llm = get_llm(model_name)
     except Exception as e:
@@ -358,28 +328,23 @@ def write_final_sections(state: SectionState):
         section.content = f"## {section.name}\n\nContent could not be generated due to an API error."
         return {"completed_sections": [section]}
 
-    # Format system instructions
     lang_instr = LANGUAGE_INSTRUCTION.get(language, "")
-    system_instructions = FINAL_SECTION_WRITER_PROMPT.format(section_title=section.name,
-                                                             section_topic=section.description,
-                                                             context=completed_report_sections) + lang_instr
+    system_instructions = FINAL_SECTION_WRITER_PROMPT.format(
+        section_title=section.name, section_topic=section.description, context=completed_report_sections
+    ) + lang_instr
 
-    # Generate section
-    user_instruction = "Craft a report section based on the provided sources."
     try:
-        section_content = llm.invoke([SystemMessage(content=system_instructions),
-                                      HumanMessage(content=user_instruction)])
+        section_content = await llm.ainvoke([
+            SystemMessage(content=system_instructions),
+            HumanMessage(content="Craft a report section based on the provided sources."),
+        ])
     except Exception as e:
         print(f"Error writing final section '{section.name}': {e}")
         section.content = f"## {section.name}\n\nContent could not be generated due to an API error."
         return {"completed_sections": [section]}
 
-    # Write content to section
     section.content = section_content.content
-
     print('--- Writing Final Section: '+ section.name + ' Completed ---')
-
-    # Write the updated section to completed sections
     return {"completed_sections": [section]}
 
 # Final Section Writing Parallelization
@@ -429,7 +394,7 @@ def compile_final_report(state: ReportState):
 
 # Final Report Writer Planning and Writing Agent
 
-builder = StateGraph(ReportState, input=ReportStateInput, output=ReportStateOutput)
+builder = StateGraph(ReportState, input_schema=ReportStateInput, output_schema=ReportStateOutput)
 
 builder.add_node("generate_report_plan", generate_report_plan)
 builder.add_node("section_builder_with_web_search", section_builder_subagent)
@@ -527,7 +492,7 @@ async def init_checkpointer():
                 return super().default(obj)
 
         class _PydanticAwareSqliteSaver(AsyncSqliteSaver):
-            async def aput(self, config, checkpoint, metadata, new_versions):
+            async def aput(self, config, checkpoint, metadata, _new_versions):
                 await self.setup()
                 thread_id = config["configurable"]["thread_id"]
                 checkpoint_ns = config["configurable"]["checkpoint_ns"]
@@ -584,36 +549,3 @@ async def close_checkpointer():
         except Exception:
             pass
         _ckpt_conn = None
-
-# Run
-
-async def call_planner_agent(agent, prompt, config={"recursion_limit": 50}, verbose=False):
-    events = agent.astream(
-        {'topic' : prompt},
-        config,
-        stream_mode="values",
-    )
-
-    async for event in events:
-        for k, v in event.items():
-            if verbose:
-                if k != "__end__":
-                    print(repr(k) + ' -> ' + repr(v))
-            if k == 'final_report':
-                print('='*50)
-                print('Final Report:')
-                print('='*50)
-                # Simply print the report content directly
-                print(v)
-                print('='*50)
-
-# Create a main async function
-async def main():
-    # Get topic from user
-    topic = str(input("Enter the topic of the report: "))
-    await call_planner_agent(agent=reporter_agent, prompt=topic)
-
-# Run the async function with asyncio
-if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())

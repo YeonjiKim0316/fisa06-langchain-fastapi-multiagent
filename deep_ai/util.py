@@ -1,26 +1,10 @@
 from langchain_community.utilities.tavily_search import TavilySearchAPIWrapper
 import asyncio
-from dataclasses import asdict, dataclass
-from typing import Dict, Any, List, Union
-# from dotenv import load_dotenv
 import os
-
-# load_dotenv()
-
-# TAVILY_API_KEY = os.getenv('TAVILY_API_KEY')
-
-# os.environ['TAVILY_API_KEY'] = TAVILY_API_KEY
-
-# just to handle objects created from LLM reponses
-@dataclass
-class SearchQuery:
-    search_query: str
-
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+import tiktoken
+from typing import Dict, Any, List, Union
 
 
-# Create a function to get tavily client on demand
 def get_tavily_search():
     import os
     api_key = os.environ.get("TAVILY_API_KEY")
@@ -34,14 +18,13 @@ def get_tavily_search():
 
 
 async def run_search_queries(
-    search_queries: List[Union[str, SearchQuery]],
+    search_queries: List[str],
     num_results: int = 4,
     include_raw_content: bool = False
 ) -> List[Dict]:
 
     search_tasks = []
-    
-    # Get tavily client on demand
+
     try:
         tavily_search = get_tavily_search()
     except Exception as e:
@@ -49,11 +32,7 @@ async def run_search_queries(
         return []
 
     for query in search_queries:
-        # Handle both string and SearchQuery objects
-        # Just in case LLM fails to generate queries as:
-        # class SearchQuery(BaseModel):
-        #     search_query: str
-        query_str = query.search_query if isinstance(query, SearchQuery) else str(query) # text query
+        query_str = str(query)
 
         try:
             # get results from tavily asynchronously (in parallel) for each search query
@@ -84,9 +63,7 @@ async def run_search_queries(
     except Exception as e:
         print(f"Error during search queries: {e}")
         return []
-    
-import tiktoken
-from typing import List, Dict, Union, Any
+
 
 def format_search_query_results(
     search_response: Union[Dict[str, Any], List[Any]],

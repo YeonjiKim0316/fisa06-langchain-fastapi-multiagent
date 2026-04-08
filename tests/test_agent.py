@@ -14,7 +14,7 @@ slow 테스트 (실제 API 키 필요, pytest -m slow):
 """
 import os
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock
 
 
 # ─────────────────────────────────────────────
@@ -65,8 +65,6 @@ class TestModelNameMapping:
             get_llm("gpt-5")
             call_kwargs = mock_openai.call_args
             assert call_kwargs is not None
-            model_used = call_kwargs[1].get("model_name") or call_kwargs[0][0] if call_kwargs[0] else None
-            # kwargs 방식
             if call_kwargs.kwargs:
                 assert call_kwargs.kwargs.get("model_name") == "gpt-4o"
 
@@ -121,7 +119,7 @@ class TestFormatSections:
 class TestParallelizeHelpers:
     def test_parallelize_section_writing_only_research_sections(self):
         from deep_ai.agent import parallelize_section_writing
-        from langgraph.constants import Send
+        from langgraph.types import Send
 
         sections = [
             _make_section("Research Sec", research=True),
@@ -137,7 +135,7 @@ class TestParallelizeHelpers:
 
     def test_parallelize_final_section_writing_only_non_research(self):
         from deep_ai.agent import parallelize_final_section_writing
-        from langgraph.constants import Send
+        from langgraph.types import Send
 
         sections = [
             _make_section("Research Sec", research=True),
