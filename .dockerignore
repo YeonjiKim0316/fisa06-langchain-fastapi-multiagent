@@ -1,0 +1,13 @@
+.env
+.env.*
+*.csv
+
+/.venv/
+**/__pycache__/
+/.claude/
+/saved_reports/*
+checkpoints.db
+fisaai6-research-agent.db
+/docs/
+
+CLAUDE.md

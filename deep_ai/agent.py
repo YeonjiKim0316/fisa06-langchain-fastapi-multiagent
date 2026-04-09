@@ -13,72 +13,72 @@ from typing import Annotated, List
 
 class Section(BaseModel):
     name: str = Field(
-        description="Name for a particular section of the report.",
+        description="보고서의 특정 섹션 이름.",
     )
     description: str = Field(
-        description="Brief overview of the main topics and concepts to be covered in this section.",
+        description="해당 섹션에서 다룰 주요 주제와 개념에 대한 간략한 개요.",
     )
     research: bool = Field(
-        description="Whether to perform web search for this section of the report."
+        description="해당 섹션에 대해 웹 검색을 수행할지 여부."
     )
     content: str = Field(
-        description="The content for this section."
+        description="해당 섹션의 내용."
     )
 
 class Sections(BaseModel):
     sections: List[Section] = Field(
-        description="All the Sections of the overall report.",
+        description="전체 보고서의 모든 섹션 목록.",
     )
 
 class SearchQuery(BaseModel):
-    search_query: str = Field(None, description="Query for web search.")
+    search_query: str = Field(None, description="웹 검색 쿼리.")
 
 class Queries(BaseModel):
     queries: List[SearchQuery] = Field(
-        description="List of web search queries.",
+        description="웹 검색 쿼리 목록.",
     )
 
 class ReportStateInput(TypedDict):
-    topic: str # Report topic
-    language: str # Output language: "한국어" or "English"
-    model_name: str # LLM model: "gpt-5" or "gpt-5-nano"
+    topic: str # 보고서 주제
+    language: str # 출력 언어: "한국어" or "English"
+    model_name: str # LLM 모델: "gpt-5" or "gpt-5-nano"
 
 class ReportStateOutput(TypedDict):
-    final_report: str # Final report
+    final_report: str # 최종 보고서
 
 class ReportState(TypedDict):
-    topic: str # Report topic
-    language: str # Output language
-    model_name: str # LLM model
-    sections: list[Section] # List of report sections
+    topic: str # 보고서 주제
+    language: str # 출력 언어
+    model_name: str # LLM 모델
+    sections: list[Section] # 보고서 섹션 목록
     completed_sections: Annotated[list, operator.add] # Send() API
-    report_sections_from_research: str # String of any completed sections from research to write final sections
-    final_report: str # Final report
+    report_sections_from_research: str # 최종 섹션 작성에 사용할 완료된 섹션 문자열
+    final_report: str # 최종 보고서
 
 class SectionState(TypedDict):
-    section: Section # Report section
-    search_queries: list[SearchQuery] # List of search queries
-    source_str: str # String of formatted source content from web search
-    report_sections_from_research: str # String of any completed sections from research to write final sections
-    completed_sections: list[Section] # Final key we duplicate in outer state for Send() API
-    language: str # Output language
-    model_name: str # LLM model
+    section: Section # 보고서 섹션
+    search_queries: list[SearchQuery] # 검색 쿼리 목록
+    source_str: str # 웹 검색 결과를 포맷한 소스 문자열
+    report_sections_from_research: str # 최종 섹션 작성에 사용할 완료된 섹션 문자열
+    completed_sections: list[Section] # Send() API를 위해 외부 상태에 복제하는 최종 키
+    language: str # 출력 언어
+    model_name: str # LLM 모델
 
 class SectionOutputState(TypedDict):
-    completed_sections: list[Section] # Final key we duplicate in outer state for Send() API
+    completed_sections: list[Section] # Send() API를 위해 외부 상태에 복제하는 최종 키
 
-# Instead of loading the LLM at import time, create a function to get it on demand
+# 임포트 시점이 아닌 필요할 때 LLM을 생성하는 함수
 def get_llm(model_name="gpt-4o-mini"):
-    """Get the LLM model, initializing it on demand with name mapping."""
+    """LLM 모델을 반환한다. 이름 매핑을 적용해 필요 시 초기화한다."""
     import os
-    # Custom mapping for future-proof naming
+    # 미래 호환 네이밍을 위한 커스텀 매핑
     model_mapping = {
         "gpt-5": "gpt-4o",
         "gpt-5-nano": "gpt-4o-mini",
     }
     real_model = model_mapping.get(model_name, model_name)
     api_key = os.environ.get("OPENAI_API_KEY")
-    
+
     try:
         if api_key:
             return ChatOpenAI(model_name=real_model, temperature=0, api_key=api_key)
@@ -87,15 +87,15 @@ def get_llm(model_name="gpt-4o-mini"):
         print(f"Error initializing OpenAI API with model {real_model}: {e}")
         raise RuntimeError("OpenAI API key not found or invalid. Please set the OPENAI_API_KEY environment variable.")
 
-# Report Planner agent
+# 보고서 플래너 에이전트
 async def generate_report_plan(state: ReportState):
-    """Generate the overall plan for building the report"""
+    """보고서 전체 구성 계획을 생성한다."""
     topic = state["topic"]
     language = state.get("language", "English")
     model_name = state.get("model_name", "gpt-5-nano")
     print('--- Generating Report Plan ---')
 
-    # Get LLM on demand
+    # 필요 시 LLM 초기화
     try:
         llm = get_llm(model_name)
     except Exception as e:
@@ -113,19 +113,19 @@ async def generate_report_plan(state: ReportState):
         number_of_queries=number_of_queries
     )
 
-    # Generate queries
+    # 검색 쿼리 생성
     results = await structured_llm.ainvoke([
         SystemMessage(content=system_instructions_query),
         HumanMessage(content='Generate search queries that will help with planning the sections of the report.')
     ])
 
-    # Convert SearchQuery objects to strings
+    # SearchQuery 객체를 문자열로 변환
     query_list = [
         query.search_query if isinstance(query, SearchQuery) else str(query)
         for query in results.queries
     ]
 
-    # Search web and ensure we wait for results
+    # 웹 검색 실행 후 결과 대기
     search_docs = await run_search_queries(
         query_list,
         num_results=4,
@@ -141,7 +141,7 @@ async def generate_report_plan(state: ReportState):
             include_raw_content=False
         )
 
-    # Generate sections
+    # 섹션 생성
     lang_instr = LANGUAGE_INSTRUCTION.get(language, "")
     system_instructions_sections = REPORT_PLAN_SECTION_GENERATOR_PROMPT.format(
         topic=topic,
@@ -157,12 +157,12 @@ async def generate_report_plan(state: ReportState):
 
     print('--- Generating Report Plan Completed ---')
     return {"sections": report_sections.sections}
-    
-    
-# Section Builder agent
+
+
+# 섹션 빌더 에이전트
 
 async def generate_queries(state: SectionState):
-    """ Generate search queries for a specific report section """
+    """특정 보고서 섹션에 대한 검색 쿼리를 생성한다."""
 
     section = state["section"]
     model_name = state.get("model_name", "gpt-5-nano")
@@ -187,29 +187,29 @@ async def generate_queries(state: SectionState):
 
     return {"search_queries": search_queries.queries}
 
-# Section Builder Web Search
+# 섹션 빌더 웹 검색
 
 async def search_web(state: SectionState):
-    """ Search the web for each query, then return a list of raw sources and a formatted string of sources."""
+    """각 쿼리로 웹을 검색하고 원본 소스 목록과 포맷된 소스 문자열을 반환한다."""
 
     search_queries = state["search_queries"]
     print('--- Searching Web for Queries ---')
 
-    # Web search
+    # 웹 검색
     query_list = [query.search_query for query in search_queries]
     search_docs = await run_search_queries(query_list, num_results=2, include_raw_content=True)
 
-    # Deduplicate and format sources
+    # 중복 제거 및 소스 포맷팅
     search_context = format_search_query_results(search_docs, max_tokens=400, include_raw_content=True)
 
     print('--- Searching Web for Queries Completed ---')
 
     return {"source_str": search_context}
 
-# Section Builder Writer
+# 섹션 빌더 작성기
 
 async def write_section(state: SectionState):
-    """ Write a section of the report """
+    """보고서의 특정 섹션을 작성한다."""
 
     section = state["section"]
     source_str = state["source_str"]
@@ -243,9 +243,9 @@ async def write_section(state: SectionState):
     print('--- Writing Section : '+ section.name +' Completed ---')
     return {"completed_sections": [section]}
 
-# Section Builder Sub Agent
+# 섹션 빌더 서브 에이전트
 
-# Add nodes and edges
+# 노드 및 엣지 추가
 section_builder = StateGraph(SectionState, output_schema=SectionOutputState)
 section_builder.add_node("generate_queries", generate_queries)
 section_builder.add_node("search_web", search_web)
@@ -257,12 +257,12 @@ section_builder.add_edge("search_web", "write_section")
 section_builder.add_edge("write_section", END)
 section_builder_subagent = section_builder.compile()
 
-# Parallelize Section Writing
+# 섹션 병렬 작성
 
 def parallelize_section_writing(state: ReportState):
-    """ This is the "map" step when we kick off web research for some sections of the report in parallel and then write the section"""
+    """웹 리서치가 필요한 섹션들을 병렬로 작성하는 map 단계."""
 
-    # Kick off section writing in parallel via Send() API for any sections that require research
+    # 리서치가 필요한 섹션에 대해 Send() API로 병렬 작성 시작
     return [
         Send("section_builder_with_web_search",
              {"section": s,
@@ -271,11 +271,11 @@ def parallelize_section_writing(state: ReportState):
             for s in state["sections"]
               if s.research
     ]
-    
-# Section Builder Format Sections
+
+# 섹션 빌더 포맷팅
 
 def format_sections(sections: list[Section]) -> str:
-    """ Format a list of report sections into a single text string """
+    """보고서 섹션 목록을 하나의 텍스트 문자열로 포맷한다."""
     formatted_str = ""
     for idx, section in enumerate(sections, 1):
         formatted_str += f"""
@@ -295,14 +295,14 @@ Content:
 
 
 def format_completed_sections(state: ReportState):
-    """ Gather completed sections from research and format them as context for writing the final sections """
+    """완료된 섹션을 수집하고 최종 섹션 작성을 위한 컨텍스트로 포맷한다."""
 
     print('--- Formatting Completed Sections ---')
 
-    # List of completed sections
+    # 완료된 섹션 목록
     completed_sections = state["completed_sections"]
 
-    # Format completed section to str to use as context for final sections
+    # 최종 섹션 컨텍스트로 사용하기 위해 완료된 섹션을 문자열로 포맷
     completed_report_sections = format_sections(completed_sections)
 
     print('--- Formatting Completed Sections is Done ---')
@@ -310,10 +310,10 @@ def format_completed_sections(state: ReportState):
     return {"report_sections_from_research": completed_report_sections}
 
 
-# Final Section
+# 최종 섹션
 
 async def write_final_sections(state: SectionState):
-    """ Write the final sections of the report, which do not require web search and use the completed sections as context"""
+    """웹 검색 없이 완료된 섹션을 컨텍스트로 활용해 최종 섹션을 작성한다."""
 
     section = state["section"]
     completed_report_sections = state["report_sections_from_research"]
@@ -347,12 +347,12 @@ async def write_final_sections(state: SectionState):
     print('--- Writing Final Section: '+ section.name + ' Completed ---')
     return {"completed_sections": [section]}
 
-# Final Section Writing Parallelization
+# 최종 섹션 병렬 작성
 
 def parallelize_final_section_writing(state: ReportState):
-    """ Write any final sections using the Send API to parallelize the process """
+    """Send API를 사용해 최종 섹션들을 병렬로 작성한다."""
 
-    # Kick off section writing in parallel via Send() API for any sections that do not require research
+    # 리서치가 불필요한 섹션에 대해 Send() API로 병렬 작성 시작
     return [
         Send("write_final_sections",
              {"section": s,
@@ -362,37 +362,37 @@ def parallelize_final_section_writing(state: ReportState):
                  for s in state["sections"]
                     if not s.research
     ]
-    
-# Compile the final report
+
+# 최종 보고서 컴파일
 
 def compile_final_report(state: ReportState):
-    """ Compile the final report """
+    """최종 보고서를 컴파일한다."""
 
-    # Get sections
+    # 섹션 가져오기
     sections = state["sections"]
     completed_sections = {s.name: s.content for s in state["completed_sections"]}
 
     print('--- Compiling Final Report ---')
 
-    # Update sections with completed content while maintaining original order
+    # 원래 순서를 유지하며 완료된 내용으로 섹션 업데이트
     for section in sections:
         section.content = completed_sections[section.name]
 
-    # Compile final report
+    # 최종 보고서 컴파일
     all_sections = "\n\n".join([s.content for s in sections])
-    # Escape unescaped $ symbols to display properly in Markdown
-    formatted_sections = all_sections.replace("\\$", "TEMP_PLACEHOLDER")  # Temporarily mark already escaped $
-    formatted_sections = formatted_sections.replace("$", "\\$")  # Escape all $
-    formatted_sections = formatted_sections.replace("TEMP_PLACEHOLDER", "\\$")  # Restore originally escaped $
+    # Markdown에서 $ 기호가 올바르게 표시되도록 이스케이프 처리
+    formatted_sections = all_sections.replace("\\$", "TEMP_PLACEHOLDER")  # 이미 이스케이프된 $ 임시 표시
+    formatted_sections = formatted_sections.replace("$", "\\$")  # 모든 $ 이스케이프
+    formatted_sections = formatted_sections.replace("TEMP_PLACEHOLDER", "\\$")  # 원래 이스케이프된 $ 복원
 
-# Now escaped_sections contains the properly escaped Markdown text
+# 이 시점에서 formatted_sections는 올바르게 이스케이프된 Markdown 텍스트를 포함한다
 
 
     print('--- Compiling Final Report Done ---')
 
     return {"final_report": formatted_sections}
 
-# Final Report Writer Planning and Writing Agent
+# 최종 보고서 작성 플래닝 및 작성 에이전트
 
 builder = StateGraph(ReportState, input_schema=ReportStateInput, output_schema=ReportStateOutput)
 

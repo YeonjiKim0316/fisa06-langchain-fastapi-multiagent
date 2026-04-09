@@ -132,9 +132,11 @@ Guidelines for writing:
     - Use `*` or `-` for unordered lists
     - Use `1.` for ordered lists
     - Ensure proper indentation and spacing
-- End with ### Sources that references the below source material formatted as:
-  * List each source with title, date, and URL
-  * Format: `- Title : URL`
+- End with ### Sources listing ONLY the sources you actually quoted or paraphrased above
+  * Copy the title and URL exactly as they appear in the provided source material (section 4 below)
+  * Format: `- [title from context] : [URL from context]`
+  * NEVER invent, guess, or fabricate titles or URLs — only include sources explicitly present in the context
+  * If no source from the context was directly quoted or paraphrased, do NOT include a Sources section at all — not even a placeholder like "No sources were used"
 
 3. Writing Approach:
 - Include at least one specific example or case study if available
@@ -153,7 +155,7 @@ Guidelines for writing:
 - One specific example / case study if available
 - Starts with bold insight
 - No preamble prior to creating the section content
-- Sources cited at end
+- Sources: only if you directly used content from the context. If unused, omit the entire ### Sources section — do NOT write "No sources were used" or any placeholder
 - If there are special characters in the text, such as the dollar symbol,
   ensure they are escaped properly for correct rendering e.g $25.5 should become \$25.5
 """

@@ -5,7 +5,7 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=(f".env.{os.environ.get('APP_ENV', 'local')}", ".env"),
+        env_file=(f".env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore"
@@ -28,6 +28,6 @@ class Settings(BaseSettings):
     google_api_key: str = ""
 
 
-@lru_cache()
+@lru_cache() # Least Recently Used (가장 최근에 덜 쓰인 항목을 제거하는 캐시 전략): 함수의 반환값 캐싱 - 한번만 올려서 계속 사용
 def get_settings() -> Settings:
     return Settings()
