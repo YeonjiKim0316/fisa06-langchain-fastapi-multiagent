@@ -93,12 +93,17 @@ async def stream_report(
             if reporter_agent is None:
                 raise RuntimeError("체크포인터가 초기화되지 않았습니다. 서버를 재시작해주세요.")
 
-            # API 키를 configurable에 담아 각 노드로 안전하게 전달 (os.environ 노출 방지)
+            # ⚠️ API 키를 configurable에서 제거 (checkpoint에 저장되는 것을 방지)
+            # 대신 os.environ에 임시로 설정 → 노드 함수에서 os.environ.get() 사용
+            import os
+            old_openai_key = os.environ.get("OPENAI_API_KEY")
+            old_tavily_key = os.environ.get("TAVILY_API_KEY")
+            os.environ["OPENAI_API_KEY"] = openai_key
+            os.environ["TAVILY_API_KEY"] = tavily_key
+
             config = {
                 "configurable": {
                     "thread_id": thread_id,
-                    "openai_api_key": openai_key,
-                    "tavily_api_key": tavily_key,
                 },
                 "recursion_limit": 50,
             }
@@ -251,5 +256,15 @@ async def stream_report(
                 "event": "stream_error",
                 "data": json.dumps({"message": f"오류가 발생했습니다: {str(e)}"}),
             }
+        finally:
+            # 환경 변수 복원
+            if old_openai_key is not None:
+                os.environ["OPENAI_API_KEY"] = old_openai_key
+            else:
+                os.environ.pop("OPENAI_API_KEY", None)
+            if old_tavily_key is not None:
+                os.environ["TAVILY_API_KEY"] = old_tavily_key
+            else:
+                os.environ.pop("TAVILY_API_KEY", None)
 
     return EventSourceResponse(event_generator())

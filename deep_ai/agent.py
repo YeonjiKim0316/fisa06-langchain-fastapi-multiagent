@@ -110,17 +110,20 @@ def get_llm(model_name: str = "gpt-5-nano", api_key: str | None = None) -> ChatO
 # ── 헬퍼: config에서 API 키 추출 ─────────────────────────────────────────────
 
 def _openai_key(config: RunnableConfig) -> str | None:
-    """config.configurable 우선, 없으면 환경변수로 폴백.
+    """환경변수에서 API 키를 로드.
 
-    generate.py는 configurable에 키를 담아 전달하므로 os.environ 레이스 컨디션 없음.
-    테스트나 스크립트처럼 직접 호출하는 경우에는 환경변수를 사용.
+    API 키는 checkpoint에 저장되지 않도록 os.environ에서만 로드.
+    generate.py에서 임시로 os.environ에 설정한 후, 각 노드에서 자동 로드.
     """
-    return config.get("configurable", {}).get("openai_api_key") or os.environ.get("OPENAI_API_KEY")
+    return os.environ.get("OPENAI_API_KEY")
 
 
 def _tavily_key(config: RunnableConfig) -> str | None:
-    """config.configurable 우선, 없으면 환경변수로 폴백."""
-    return config.get("configurable", {}).get("tavily_api_key") or os.environ.get("TAVILY_API_KEY")
+    """환경변수에서 API 키를 로드.
+
+    API 키는 checkpoint에 저장되지 않도록 os.environ에서만 로드.
+    """
+    return os.environ.get("TAVILY_API_KEY")
 
 
 # ── 보고서 플래너 에이전트 ───────────────────────────────────────────────────
