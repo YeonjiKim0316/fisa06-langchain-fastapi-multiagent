@@ -8,7 +8,7 @@ from services.storage_service import get_report_content
 from services.pdf_service import generate_pdf
 
 router = APIRouter(prefix="/pdf", tags=["pdf"])
-logger = logging.getLogger("deepresearch.pdf")
+logger = logging.getLogger("fisaai6-multi-agent.pdf")
 
 
 @router.post("/generate")

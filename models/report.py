@@ -12,7 +12,7 @@ class Report(Base):
     filename = Column(String(255), nullable=False, unique=True, index=True)
     timestamp = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),  # 앱 레벨: 밀리초 정밀도
+        default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
     logs_json = Column(Text, nullable=True)

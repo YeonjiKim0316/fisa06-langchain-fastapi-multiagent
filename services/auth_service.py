@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 import bcrypt
 from core.config import get_settings
 
-logger = logging.getLogger("deepresearch.auth")
+logger = logging.getLogger("fisaai6-multi-agent.auth")
 settings = get_settings()
 
 ALGORITHM = "HS256"

@@ -214,9 +214,7 @@ class TestGenerateStream:
     def test_stream_with_mocked_agent(self, auth_client):
         """SSE 엔드포인트 기본 동작 검증 (응답 코드 + Content-Type).
 
-        sse-starlette의 EventSourceResponse는 비동기 스트리밍 응답이므로
-        TestClient 동기 환경에서 응답 body를 완전히 읽으려면 스트리밍 컨텍스트를 사용.
-        body가 비어있어도 Content-Type 헤더로 SSE 엔드포인트임을 확인.
+        stream_mode="updates" 포맷: {node_name: state_delta} 딕셔너리로 yield.
         """
         import os
         os.environ["OPENAI_API_KEY"] = "sk-mock-key-for-testing"
@@ -229,8 +227,9 @@ class TestGenerateStream:
         mock_section.content = "## Introduction\n\nThis is the intro."
 
         async def mock_astream(*args, **kwargs):
-            yield {"sections": [mock_section]}
-            yield {"final_report": "# Final Report\n\nContent."}
+            # stream_mode="updates": {node_name: state_delta}
+            yield {"generate_report_plan": {"sections": [mock_section]}}
+            yield {"compile_final_report": {"final_report": "# Final Report\n\nContent."}}
 
         async def mock_aget_state(*args, **kwargs):
             state = MagicMock()
@@ -244,7 +243,6 @@ class TestGenerateStream:
 
         with patch("deep_ai.agent.reporter_agent", mock_agent), \
              patch("routers.generate.save_report", return_value="mock/path.md"):
-            # 스트리밍 컨텍스트로 SSE body 수집
             with auth_client.stream(
                 "GET",
                 "/generate/stream?topic=Test+Topic&thread_id=test-thread-001",
@@ -253,7 +251,6 @@ class TestGenerateStream:
                 assert "text/event-stream" in resp.headers.get("content-type", "")
                 body = resp.read().decode("utf-8", errors="replace")
 
-        # 최소한 progress 또는 data 이벤트가 있어야 함
         assert "event:" in body or "data:" in body or body == "", \
             f"예상치 못한 응답: {body[:200]}"
 
@@ -269,7 +266,8 @@ class TestGenerateStream:
         mock_section.research = True
 
         async def mock_astream(*args, **kwargs):
-            yield {"sections": [mock_section]}
+            # interrupt_after=["generate_report_plan"] 시 스트림은 해당 노드 업데이트 후 종료
+            yield {"generate_report_plan": {"sections": [mock_section]}}
 
         async def mock_aget_state(*args, **kwargs):
             state = MagicMock()
@@ -287,6 +285,5 @@ class TestGenerateStream:
                 assert "text/event-stream" in resp.headers.get("content-type", "")
                 body = resp.read().decode("utf-8", errors="replace")
 
-        # plan_generated 이벤트 또는 progress 이벤트 포함 확인
         assert "plan_generated" in body or "event:" in body or body == "", \
             f"예상치 못한 응답: {body[:200]}"

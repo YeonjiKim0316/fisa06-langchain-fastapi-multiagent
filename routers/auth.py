@@ -8,7 +8,7 @@ from services.auth_service import sign_in, sign_up, sign_out
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 templates = Jinja2Templates(directory="templates")
-logger = logging.getLogger("deepresearch.auth")
+logger = logging.getLogger("fisaai6-multi-agent.auth")
 
 
 @router.get("/login", response_class=HTMLResponse)

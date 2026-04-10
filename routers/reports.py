@@ -9,7 +9,7 @@ from services.storage_service import load_saved_reports, get_report_content, del
 
 router = APIRouter(tags=["reports"])
 templates = Jinja2Templates(directory="templates")
-logger = logging.getLogger("deepresearch.reports")
+logger = logging.getLogger("fisaai6-multi-agent.reports")
 
 
 @router.get("/dashboard", response_class=HTMLResponse)

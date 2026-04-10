@@ -58,7 +58,10 @@ class TestGraphStructure:
 # ─────────────────────────────────────────────
 
 class TestModelNameMapping:
-    def test_gpt5_maps_to_gpt4o(self):
+    def test_gpt5_maps_to_gpt41(self):
+        # _create_llm이 캐싱되므로 패치 전에 해당 키 캐시를 비워둔다
+        from deep_ai.agent import _create_llm
+        _create_llm.cache_clear()
         with patch("deep_ai.agent.ChatOpenAI") as mock_openai:
             mock_openai.return_value = MagicMock()
             from deep_ai.agent import get_llm
@@ -66,17 +69,21 @@ class TestModelNameMapping:
             call_kwargs = mock_openai.call_args
             assert call_kwargs is not None
             if call_kwargs.kwargs:
-                assert call_kwargs.kwargs.get("model_name") == "gpt-4o"
+                assert call_kwargs.kwargs.get("model_name") == "gpt-4.1"
 
-    def test_gpt5_nano_maps_to_gpt4o_mini(self):
+    def test_gpt5_nano_maps_to_gpt41_mini(self):
+        from deep_ai.agent import _create_llm
+        _create_llm.cache_clear()
         with patch("deep_ai.agent.ChatOpenAI") as mock_openai:
             mock_openai.return_value = MagicMock()
             from deep_ai.agent import get_llm
             get_llm("gpt-5-nano")
             if mock_openai.call_args and mock_openai.call_args.kwargs:
-                assert mock_openai.call_args.kwargs.get("model_name") == "gpt-4o-mini"
+                assert mock_openai.call_args.kwargs.get("model_name") == "gpt-4.1-mini"
 
     def test_unknown_model_passes_through(self):
+        from deep_ai.agent import _create_llm
+        _create_llm.cache_clear()
         with patch("deep_ai.agent.ChatOpenAI") as mock_openai:
             mock_openai.return_value = MagicMock()
             from deep_ai.agent import get_llm

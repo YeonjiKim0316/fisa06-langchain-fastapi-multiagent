@@ -22,7 +22,7 @@ from reportlab.platypus import (
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
-logger = logging.getLogger("deepresearch.pdf")
+logger = logging.getLogger("fisaai6-multi-agent.pdf")
 
 _FONTS_DIR = Path(__file__).parent.parent / "static" / "fonts"
 

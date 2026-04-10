@@ -15,7 +15,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
-logger = logging.getLogger("deepresearch")
+logger = logging.getLogger("fisaai6-multi-agent")
 
 # Silence noisy msgpack warning from langgraph
 logging.getLogger("langgraph.checkpoint.serde.jsonplus").setLevel(logging.ERROR)

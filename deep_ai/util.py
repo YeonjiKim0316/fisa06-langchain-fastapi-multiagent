@@ -1,65 +1,40 @@
-from langchain_community.utilities.tavily_search import TavilySearchAPIWrapper
+from tavily import AsyncTavilyClient
 import asyncio
-import os
 import tiktoken
 from typing import Dict, Any, List, Union
 
 
-def get_tavily_search():
-    import os
-    api_key = os.environ.get("TAVILY_API_KEY")
-    try:
-        if api_key:
-            return TavilySearchAPIWrapper(tavily_api_key=api_key)
-        return TavilySearchAPIWrapper()
-    except Exception as e:
-        print(f"Error initializing Tavily API: {e}")
-        raise RuntimeError("Tavily API key not found or invalid.")
-
-
 async def run_search_queries(
     search_queries: List[str],
+    api_key: str,
     num_results: int = 4,
     include_raw_content: bool = False
 ) -> List[Dict]:
+    """각 쿼리로 웹을 병렬 검색하고 결과 목록을 반환한다."""
 
-    search_tasks = []
-
-    try:
-        tavily_search = get_tavily_search()
-    except Exception as e:
-        print(f"Error initializing Tavily API: {e}")
+    if not api_key:
+        print("Warning: Tavily API key not provided")
         return []
 
-    for query in search_queries:
-        query_str = str(query)
+    client = AsyncTavilyClient(api_key=api_key)
 
-        try:
-            # get results from tavily asynchronously (in parallel) for each search query
-            search_tasks.append(
-                tavily_search.raw_results_async(
-                    query=query_str,
-                    max_results=num_results,
-                    search_depth='advanced',
-                    include_answer=False,
-                    include_raw_content=include_raw_content
-                )
-            )
-        except Exception as e:
-            print(f"Error creating search task for query '{query_str}': {e}")
-            continue
+    search_tasks = [
+        client.search(
+            query=str(query),
+            max_results=num_results,
+            search_depth="advanced",
+            include_answer=False,
+            include_raw_content=include_raw_content,
+        )
+        for query in search_queries
+    ]
 
-    # Execute all searches concurrently and await results
+    if not search_tasks:
+        return []
+
     try:
-        if not search_tasks:
-            return []
         search_docs = await asyncio.gather(*search_tasks, return_exceptions=True)
-        # Filter out any exceptions from the results
-        valid_results = [
-            doc for doc in search_docs
-            if not isinstance(doc, Exception)
-        ]
-        return valid_results
+        return [doc for doc in search_docs if not isinstance(doc, Exception)]
     except Exception as e:
         print(f"Error during search queries: {e}")
         return []
@@ -70,22 +45,20 @@ def format_search_query_results(
     max_tokens: int = 2500,
     include_raw_content: bool = False
 ) -> str:
-    encoding = tiktoken.encoding_for_model("gpt-4")
+    encoding = tiktoken.encoding_for_model("gpt-4o")
     sources_list = []
 
     # Handle different response formats
-    # if search results is a dict
     if isinstance(search_response, dict):
-        if 'results' in search_response:
-            sources_list.extend(search_response['results'])
+        if "results" in search_response:
+            sources_list.extend(search_response["results"])
         else:
             sources_list.append(search_response)
-    # if search results is a list
     elif isinstance(search_response, list):
         for response in search_response:
             if isinstance(response, dict):
-                if 'results' in response:
-                    sources_list.extend(response['results'])
+                if "results" in response:
+                    sources_list.extend(response["results"])
                 else:
                     sources_list.append(response)
             elif isinstance(response, list):
@@ -94,27 +67,24 @@ def format_search_query_results(
     if not sources_list:
         return "No search results found."
 
-    # Deduplicate by URL and keep unique sources (website urls)
+    # Deduplicate by URL
     unique_sources = {}
     for source in sources_list:
-        if isinstance(source, dict) and 'url' in source:
-            if source['url'] not in unique_sources:
-                unique_sources[source['url']] = source
+        if isinstance(source, dict) and "url" in source:
+            if source["url"] not in unique_sources:
+                unique_sources[source["url"]] = source
 
-    # Format output
     formatted_text = "Content from web search:\n\n"
-    for i, source in enumerate(unique_sources.values(), 1):
+    for source in unique_sources.values():
         formatted_text += f"Source {source.get('title', 'Untitled')}:\n===\n"
         formatted_text += f"URL: {source['url']}\n===\n"
         formatted_text += f"Most relevant content from source: {source.get('content', 'No content available')}\n===\n"
 
         if include_raw_content:
-            # truncate raw webpage content to a certain number of tokens to prevent exceeding LLM max token window
             raw_content = source.get("raw_content", "")
             if raw_content:
                 tokens = encoding.encode(raw_content, disallowed_special=())
-                truncated_tokens = tokens[:max_tokens]
-                truncated_content = encoding.decode(truncated_tokens)
+                truncated_content = encoding.decode(tokens[:max_tokens])
                 formatted_text += f"Raw Content: {truncated_content}\n\n"
 
     return formatted_text.strip()

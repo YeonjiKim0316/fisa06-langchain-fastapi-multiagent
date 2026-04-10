@@ -4,7 +4,7 @@ import os
 import re
 from datetime import datetime, timezone, timedelta
 
-logger = logging.getLogger("deepresearch.storage")
+logger = logging.getLogger("fisaai6-multi-agent.storage")
 
 class StorageBackend:
     def ensure_bucket(self): pass
@@ -138,19 +138,24 @@ def save_report(user_id: str, topic: str, content: str, logs: list = None) -> st
 
 
 def load_saved_reports(user_id: str) -> list[dict]:
-    """DB에서 사용자의 보고서 메타데이터 목록을 내림차순으로 반환한다."""
     from core.database import SessionLocal
     from models.report import Report
     db = SessionLocal()
     try:
-        reports = db.query(Report).filter(Report.user_id == user_id).order_by(Report.timestamp.desc()).all()
+        reports = (
+            db.query(Report)
+            .filter(Report.user_id == user_id)
+            .order_by(Report.timestamp.desc())
+            .all()
+        )
         return [
             {
                 "topic": r.topic,
                 "timestamp": r.timestamp,
                 "filename": r.filename,
-                "path": f"{user_id}/{r.filename}"
-            } for r in reports
+                "path": f"{user_id}/{r.filename}",
+            }
+            for r in reports
         ]
     finally:
         db.close()

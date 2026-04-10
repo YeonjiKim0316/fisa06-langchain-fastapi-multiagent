@@ -17,17 +17,15 @@ pymysql==1.1.1
 
 # AI & LangGraph
 langchain
-langchain-community
 langchain-core
 langchain-openai
-langchain-google-genai
-langchain-text-splitters
-langgraph
+langchain-tavily
+tavily-python
+langgraph>=1.0
 langgraph-checkpoint
 langgraph-checkpoint-sqlite
 langgraph-checkpoint-mysql
 aiomysql
-langgraph-sdk
 langsmith
 openai==1.68.2
 tiktoken==0.9.0
