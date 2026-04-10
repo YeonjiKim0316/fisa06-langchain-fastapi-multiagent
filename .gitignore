@@ -7,9 +7,9 @@
 /.claude/
 /saved_reports/*
 /checkpoints.db
+/checkpoints.db-wal
+/checkpoints.db-shm
 checkpoints.*
 /docs/
 
 CLAUDE.md
-
-checkpoints*.*
