@@ -2,7 +2,16 @@
 
 FastAPI 백엔드 서버, LangGraph 및 다중 에이전트(Multi-Agent) 아키텍처를 기반으로 구축된 최첨단 AI 기반 리서치 보고서 자동 생성 시스템입니다. 자동화된 연구 계획 수립, 웹 검색(Web Research) 및 구조화된 보고서 생성을 지원하며, Bootstrap 5 및 Jinja2 템플릿을 활용한 완전한 서버 사이드 렌더링(SSR) UI를 제공합니다.
 ![Workflow](architecture.png)
-![Agent Workflow](langgraph.png)
+
+```mermaid
+flowchart TD
+    START((START)) --> generate_report_plan[generate_report_plan]
+    generate_report_plan -->|parallelize_section_writing| section_builder_with_web_search[section_builder_with_web_search]
+    section_builder_with_web_search --> format_completed_sections[format_completed_sections]
+    format_completed_sections -->|parallelize_final_section_writing| write_final_sections[write_final_sections]
+    write_final_sections --> compile_final_report[compile_final_report]
+    compile_final_report --> END((END))
+```
 
 ## 🚀 개요
 
