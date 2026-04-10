@@ -87,15 +87,15 @@ class SectionOutputState(TypedDict):
 
 # UI 표시명 → 실제 OpenAI 모델명
 MODEL_MAPPING: dict[str, str] = {
-    "gpt-5": "gpt-4.1",
-    "gpt-5-nano": "gpt-4.1-mini",
+    "gpt-5": "gpt-5",
+    "gpt-5-nano": "gpt-5-nano",
 }
 
 
 @functools.lru_cache(maxsize=8)
 def _create_llm(real_model: str, api_key: str | None) -> ChatOpenAI:
     """실제 모델명과 API 키로 ChatOpenAI 인스턴스를 생성하고 캐싱한다."""
-    kwargs: dict = {"model_name": real_model, "temperature": 0}
+    kwargs: dict = {"model_name": real_model}
     if api_key:
         kwargs["api_key"] = api_key
     return ChatOpenAI(**kwargs)
